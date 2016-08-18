@@ -1,4 +1,4 @@
-package codec
+package chronix
 
 import (
 	"bytes"
@@ -7,15 +7,14 @@ import (
 	"io/ioutil"
 	"math"
 
-	"github.com/ChronixDB/chronix.go/model"
-	"github.com/ChronixDB/chronix.go/pb"
+	"github.com/ChronixDB/chronix.go/chronix/pb"
 	"github.com/golang/protobuf/proto"
 )
 
 const almostEqualsOffsetMS = 10
 
-// Decode decodes a serialized stream of points.
-func Decode(compressed []byte, tsStart, tsEnd, from, to int64) ([]model.Point, error) {
+// decode decodes a serialized stream of points.
+func decode(compressed []byte, tsStart, tsEnd, from, to int64) ([]Point, error) {
 	if from == -1 || to == -1 {
 		return nil, fmt.Errorf("'from' or 'to' have to be >= 0")
 	}
@@ -50,7 +49,7 @@ func Decode(compressed []byte, tsStart, tsEnd, from, to int64) ([]model.Point, e
 	lastOffset := int64(almostEqualsOffsetMS)
 	calculatedPointDate := tsStart
 
-	points := make([]model.Point, 0, len(pbPoints.P))
+	points := make([]Point, 0, len(pbPoints.P))
 
 	for i, p := range pbPoints.P {
 		if i > 0 {
@@ -63,7 +62,7 @@ func Decode(compressed []byte, tsStart, tsEnd, from, to int64) ([]model.Point, e
 
 		// Only add the point if it is within the selected range.
 		if calculatedPointDate >= from && calculatedPointDate <= to {
-			points = append(points, model.Point{
+			points = append(points, Point{
 				Timestamp: calculatedPointDate,
 				Value:     p.GetV(),
 			})
@@ -72,8 +71,8 @@ func Decode(compressed []byte, tsStart, tsEnd, from, to int64) ([]model.Point, e
 	return points, nil
 }
 
-// Encode takes a series of points and encodes them.
-func Encode(points []model.Point) ([]byte, error) {
+// encode takes a series of points and encodes them.
+func encode(points []Point) ([]byte, error) {
 	var prevDate int64
 	var prevOffset int64
 
