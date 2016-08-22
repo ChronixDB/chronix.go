@@ -8,6 +8,8 @@ import (
 // Client is a client that allows storing time series in Chronix.
 type Client interface {
 	Store(ts []TimeSeries, commit bool) error
+	// TODO: Return a more interpreted query result on the Chronix level.
+	Query(q, fq, fl string) ([]byte, error)
 }
 
 type client struct {
@@ -51,4 +53,8 @@ func (c *client) Store(series []TimeSeries, commit bool) error {
 		update = append(update, fields)
 	}
 	return c.solr.Update(update, commit)
+}
+
+func (c *client) Query(q, fq, fl string) ([]byte, error) {
+	return c.solr.Query(q, fq, fl)
 }

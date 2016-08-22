@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -14,6 +15,8 @@ import (
 // A SolrClient allows updating documents in Solr.
 type SolrClient interface {
 	Update(data []map[string]interface{}, commit bool) error
+	// TODO: Return a more interpreted result on the Solr level.
+	Query(q, fq, fl string) ([]byte, error)
 }
 
 // CancelableTransport is like net.Transport but provides
@@ -53,12 +56,12 @@ func NewSolrClient(url *url.URL, transport CancelableTransport) SolrClient {
 
 // Update implements SolrClient.
 func (c *solrClient) Update(data []map[string]interface{}, commit bool) error {
-	u := c.url
+	u := *c.url
 	u.Path = path.Join(c.url.Path, "/update")
 	if commit {
-		q := u.Query()
-		q.Set("commit", "true")
-		u.RawQuery = q.Encode()
+		qs := u.Query()
+		qs.Set("commit", "true")
+		u.RawQuery = qs.Encode()
 	}
 
 	buf, err := json.Marshal(data)
@@ -80,4 +83,30 @@ func (c *solrClient) Update(data []map[string]interface{}, commit bool) error {
 		return fmt.Errorf("bad HTTP response code: %s", resp.Status)
 	}
 	return nil
+}
+
+func (c *solrClient) Query(q, fq, fl string) ([]byte, error) {
+	u := *c.url
+	u.Path = path.Join(c.url.Path, "/select")
+	qs := u.Query()
+	qs.Set("q", q)
+	qs.Set("fq", fq)
+	qs.Set("fl", fl)
+	qs.Set("wt", "json")
+	u.RawQuery = qs.Encode()
+
+	resp, err := c.httpClient.Get(u.String())
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("bad HTTP response code: %s", resp.Status)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response body: %v", err)
+	}
+	return body, nil
 }

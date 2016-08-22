@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func TestClientEndToEnd(t *testing.T) {
+func TestUpdateEndToEnd(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.String() != "/solr/chronix/update?commit=true" {
 			t.Fatal("Unexpected URL:", r.URL.String())
@@ -75,5 +75,55 @@ func TestClientEndToEnd(t *testing.T) {
 
 	if err = c.Store(series, true); err != nil {
 		t.Fatal("Error storing time series:", err)
+	}
+}
+
+func TestQueryEndToEnd(t *testing.T) {
+	q := "metric:(testmetric) AND start:1471517965000 AND end:1471520557000"
+	fq := "join=host_s,metric"
+	fl := "dataAsJson"
+
+	resultJSON := "{}"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		wantPath := "/solr/chronix/select"
+		if r.URL.Path != wantPath {
+			t.Fatalf("Unexpected path; want %s, got %s", wantPath, r.URL.Path)
+		}
+		if r.Method != "GET" {
+			t.Fatal("Unexpected method; want GET, got", r.Method)
+		}
+
+		qs := r.URL.Query()
+		wantParams := map[string]string{
+			"q":  q,
+			"fq": fq,
+			"fl": fl,
+			"wt": "json",
+		}
+		for k, v := range wantParams {
+			if qs.Get(k) != v {
+				t.Fatal("Unexpected query param value; want %s, got %s", k, qs.Get(k))
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(resultJSON))
+	}))
+	defer server.Close()
+
+	u, err := url.Parse(server.URL + "/solr/chronix")
+	if err != nil {
+		t.Fatal("Error parsing Solr URL:", err)
+	}
+	solr := NewSolrClient(u, nil)
+	c := New(solr)
+
+	res, err := c.Query(q, fq, fl)
+	if err != nil {
+		t.Fatal("Error querying:", err)
+	}
+	if string(res) != resultJSON {
+		t.Fatalf("Unexpected result JSON; want %s, got %s", resultJSON, string(res))
 	}
 }

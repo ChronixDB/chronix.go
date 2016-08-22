@@ -10,20 +10,7 @@ import (
 	"github.com/ChronixDB/chronix.go/chronix"
 )
 
-func main() {
-	solrURL := flag.String("solr.url", "", "The URL to the Solr endpoint to use.")
-	flag.Parse()
-
-	if *solrURL == "" {
-		log.Fatalln("Need to provide -solr.url flag")
-	}
-	u, err := url.Parse(*solrURL)
-	if err != nil {
-		log.Fatalln("Error parsing Solr URL:", err)
-	}
-	solr := chronix.NewSolrClient(u, nil)
-	c := chronix.New(solr)
-
+func buildSeries() []chronix.TimeSeries {
 	series := make([]chronix.TimeSeries, 0, 10)
 	for s := 0; s < 10; s++ {
 		ts := chronix.TimeSeries{
@@ -44,8 +31,37 @@ func main() {
 
 		series = append(series, ts)
 	}
+	return series
+}
 
+func main() {
+	solrURL := flag.String("solr.url", "", "The URL to the Solr endpoint to use.")
+	flag.Parse()
+
+	if *solrURL == "" {
+		log.Fatalln("Need to provide -solr.url flag")
+	}
+	u, err := url.Parse(*solrURL)
+	if err != nil {
+		log.Fatalln("Error parsing Solr URL:", err)
+	}
+	solr := chronix.NewSolrClient(u, nil)
+	c := chronix.New(solr)
+
+	log.Println("Storing time series...")
+	series := buildSeries()
 	if err = c.Store(series, true); err != nil {
 		log.Fatalln("Error storing time series:", err)
 	}
+	log.Println("Done storing.")
+
+	log.Println("Querying time series...")
+	q := "metric:(testmetric) AND start:1471517965000 AND end:1471520557000"
+	fq := "join=host_s,metric"
+	fl := "dataAsJson"
+	resp, err := c.Query(q, fq, fl)
+	if err != nil {
+		log.Fatalln("Error querying time series:", err)
+	}
+	log.Println("Raw query output:", string(resp))
 }
