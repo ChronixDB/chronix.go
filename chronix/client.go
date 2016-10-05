@@ -7,7 +7,7 @@ import (
 
 // Client is a client that allows storing time series in Chronix.
 type Client interface {
-	Store(ts []TimeSeries, commit bool) error
+	Store(ts []*TimeSeries, commit bool) error
 	// TODO: Return a more interpreted query result on the Chronix level.
 	Query(q, fq, fl string) ([]byte, error)
 }
@@ -23,7 +23,7 @@ func New(s SolrClient) Client {
 	}
 }
 
-func (c *client) Store(series []TimeSeries, commit bool) error {
+func (c *client) Store(series []*TimeSeries, commit bool) error {
 	if len(series) == 0 {
 		return nil
 	}

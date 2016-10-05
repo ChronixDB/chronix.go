@@ -53,9 +53,9 @@ func TestUpdateEndToEnd(t *testing.T) {
 	solr := NewSolrClient(u, nil)
 	c := New(solr)
 
-	series := make([]TimeSeries, 0, 10)
+	series := make([]*TimeSeries, 0, 10)
 	for s := 0; s < 10; s++ {
-		ts := TimeSeries{
+		ts := &TimeSeries{
 			Metric: "testmetric",
 			Attributes: map[string]string{
 				"host": fmt.Sprintf("testhost_%d", s),
@@ -103,7 +103,7 @@ func TestQueryEndToEnd(t *testing.T) {
 		}
 		for k, v := range wantParams {
 			if qs.Get(k) != v {
-				t.Fatal("Unexpected query param value; want %s, got %s", k, qs.Get(k))
+				t.Fatalf("Unexpected query param value; want %s, got %s", k, qs.Get(k))
 			}
 		}
 

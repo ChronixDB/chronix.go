@@ -10,10 +10,10 @@ import (
 	"github.com/ChronixDB/chronix.go/chronix"
 )
 
-func buildSeries() []chronix.TimeSeries {
-	series := make([]chronix.TimeSeries, 0, 10)
+func buildSeries() []*chronix.TimeSeries {
+	series := make([]*chronix.TimeSeries, 0, 10)
 	for s := 0; s < 10; s++ {
-		ts := chronix.TimeSeries{
+		ts := &chronix.TimeSeries{
 			Metric: "testmetric",
 			Attributes: map[string]string{
 				"host": fmt.Sprintf("testhost_%d", s),
