@@ -1,28 +1,10 @@
 package chronix
 
 import (
-	"bytes"
-	"compress/gzip"
-	"io"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"testing"
 )
-
-func gzipDecode(t *testing.T, r io.Reader) []byte {
-	gzipReader, err := gzip.NewReader(r)
-	if err != nil {
-		t.Fatal("Failed to create gzip reader: ", err)
-	}
-	defer gzipReader.Close()
-
-	buf, err := ioutil.ReadAll(gzipReader)
-	if err != nil {
-		t.Fatal("Failed to decompress data: ", err)
-	}
-	return buf
-}
 
 func buildTestPoints() []Point {
 	points := make([]Point, 0, 100)
@@ -35,32 +17,29 @@ func buildTestPoints() []Point {
 	return points
 }
 
-func TestEncode(t *testing.T) {
-	points := buildTestPoints()
-
-	buf, err := encode(points)
-	if err != nil {
-		t.Fatal("Failed to encode points: ", err)
-	}
-
-	f, err := os.Open("fixtures/encoded.gz")
-	if err != nil {
-		t.Fatal("Failed to open test fixture: ", err)
-	}
-	defer f.Close()
-
-	want := gzipDecode(t, f)
-	got := gzipDecode(t, bytes.NewReader(buf))
-
-	if !bytes.Equal(want, got) {
-		t.Fatalf("wrong encoding; want:\n\n%v\n\ngot:\n\n%v", want, got)
-	}
-}
-
 func TestDecode(t *testing.T) {
 	points := buildTestPoints()
 
-	buf, err := encode(points)
+	encoded, err := ioutil.ReadFile("fixtures/encoded.gz")
+	if err != nil {
+		t.Fatal("Failed to read test fixture: ", err)
+	}
+
+	tsStart := points[0].Timestamp
+	tsEnd := points[len(points)-1].Timestamp
+	outPoints, err := decode(encoded, tsStart, tsEnd, tsStart, tsEnd)
+	if err != nil {
+		t.Fatal("Failed to decode points: ", err)
+	}
+	if !reflect.DeepEqual(points, outPoints) {
+		t.Fatalf("Unexpected points, want:\n\n%v\n\ngot:\n\n%v", points, outPoints)
+	}
+}
+
+func TestEncode(t *testing.T) {
+	points := buildTestPoints()
+
+	buf, err := encode(points, 0)
 	if err != nil {
 		t.Fatal("Failed to encode points: ", err)
 	}
