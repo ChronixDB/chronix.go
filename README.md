@@ -60,8 +60,8 @@ series := []chronix.TimeSeries{
 	},
 }
 
-// Store the test series.
-err := c.Store(series, true)
+// Store the test series and commit within one second.
+err := c.Store(series, false, time.Second)
 if err != nil {
   // Handle error.
 }
