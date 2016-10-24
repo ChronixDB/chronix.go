@@ -50,7 +50,7 @@ func main() {
 
 	log.Println("Storing time series...")
 	series := buildSeries()
-	if err = c.Store(series, true); err != nil {
+	if err = c.Store(series, true, 0); err != nil {
 		log.Fatalln("Error storing time series:", err)
 	}
 	log.Println("Done storing.")

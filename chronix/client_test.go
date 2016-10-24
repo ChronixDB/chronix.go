@@ -9,11 +9,12 @@ import (
 	"net/url"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestUpdateEndToEnd(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.String() != "/solr/chronix/update?commit=true" {
+		if r.URL.String() != "/solr/chronix/update?commit=true&commitWithin=1000" {
 			t.Fatal("Unexpected URL:", r.URL.String())
 		}
 		if r.Method != "POST" {
@@ -73,7 +74,7 @@ func TestUpdateEndToEnd(t *testing.T) {
 		series = append(series, ts)
 	}
 
-	if err = c.Store(series, true); err != nil {
+	if err = c.Store(series, true, time.Second); err != nil {
 		t.Fatal("Error storing time series:", err)
 	}
 }
