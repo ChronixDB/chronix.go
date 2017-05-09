@@ -41,10 +41,11 @@ func (c *client) Store(series []*TimeSeries, commit bool, commitWithin time.Dura
 		}
 		encData := base64.StdEncoding.EncodeToString(data)
 		fields := map[string]interface{}{
-			"start":  ts.Points[0].Timestamp,
-			"end":    ts.Points[len(ts.Points)-1].Timestamp,
-			"data":   encData,
-			"metric": ts.Metric,
+			"start": ts.Points[0].Timestamp,
+			"end":   ts.Points[len(ts.Points)-1].Timestamp,
+			"data":  encData,
+			"name":  ts.Metric,
+			"type":  "metric",
 		}
 
 		for k, v := range ts.Attributes {
