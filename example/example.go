@@ -14,7 +14,8 @@ func buildSeries() []*chronix.TimeSeries {
 	series := make([]*chronix.TimeSeries, 0, 10)
 	for s := 0; s < 10; s++ {
 		ts := &chronix.TimeSeries{
-			Metric: "testmetric",
+			Name: "testmetric",
+			Type: "metric",
 			Attributes: map[string]string{
 				"host": fmt.Sprintf("testhost_%d", s),
 			},
@@ -56,10 +57,10 @@ func main() {
 	log.Println("Done storing.")
 
 	log.Println("Querying time series...")
-	q := "metric:(testmetric) AND start:1471517965000 AND end:1471520557000"
-	fq := "join=host_s,metric"
+	q := "name:(testmetric) AND start:1471517965000 AND end:NOW"
+	cj := "host_s,name"
 	fl := "dataAsJson"
-	resp, err := c.Query(q, fq, fl)
+	resp, err := c.Query(q, cj, fl)
 	if err != nil {
 		log.Fatalln("Error querying time series:", err)
 	}

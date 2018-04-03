@@ -44,7 +44,8 @@ func (c *client) Store(series []*TimeSeries, commit bool, commitWithin time.Dura
 			"start":  ts.Points[0].Timestamp,
 			"end":    ts.Points[len(ts.Points)-1].Timestamp,
 			"data":   encData,
-			"metric": ts.Metric,
+			"name": ts.Name,
+			"type" : ts.Type,
 		}
 
 		for k, v := range ts.Attributes {

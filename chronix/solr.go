@@ -88,12 +88,12 @@ func (c *solrClient) Update(data []map[string]interface{}, commit bool, commitWi
 	return nil
 }
 
-func (c *solrClient) Query(q, fq, fl string) ([]byte, error) {
+func (c *solrClient) Query(q, cj, fl string) ([]byte, error) {
 	u := *c.url
 	u.Path = path.Join(c.url.Path, "/select")
 	qs := u.Query()
 	qs.Set("q", q)
-	qs.Set("fq", fq)
+	qs.Set("cj", cj)
 	qs.Set("fl", fl)
 	qs.Set("wt", "json")
 	u.RawQuery = qs.Encode()
