@@ -106,3 +106,7 @@ func (c *solrClient) Query(q, cj, fl string) ([]byte, error) {
 	}
 	return body, nil
 }
+
+func (c *solrClient) NeedPostfixOnDynamicField() bool {
+	return true
+}

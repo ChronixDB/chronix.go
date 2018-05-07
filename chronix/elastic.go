@@ -62,7 +62,8 @@ func configureIndex(client *elastic.Client, deleteIfExists *bool) {
 				"data":{"type":"binary", "doc_values": false},
 				"start":{"type":"date", "format": "epoch_millis"},
 				"end":{"type":"date", "format": "epoch_millis"},
-				"name":{"type":"string"}
+				"name":{"type":"text"},
+				"type":{"type":"text"}
 			}}}}`
 
 		createIndex, err := client.CreateIndex("chronix").Body(mapping).Do(context.Background())
@@ -103,4 +104,8 @@ func (c *elasticClient) Update(data []map[string]interface{}, commit bool, commi
 
 func (c *elasticClient) Query(q, cj, fl string) ([]byte, error) {
 	return nil, fmt.Errorf("not yet implmented")
+}
+
+func (c *elasticClient) NeedPostfixOnDynamicField() bool {
+	return false
 }

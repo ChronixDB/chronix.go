@@ -48,9 +48,16 @@ func (c *client) Store(series []*TimeSeries, commit bool, commitWithin time.Dura
 			"type":  ts.Type,
 		}
 
-		for k, v := range ts.Attributes {
-			fields[k+"_s"] = v
+		if c.storage.NeedPostfixOnDynamicField() {
+			for k, v := range ts.Attributes {
+				fields[k+"_s"] = v
+			}
+		} else {
+			for k, v := range ts.Attributes {
+				fields[k] = v
+			}
 		}
+
 		update = append(update, fields)
 	}
 	return c.storage.Update(update, commit, commitWithin)
