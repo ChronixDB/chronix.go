@@ -52,7 +52,7 @@ func TestUpdateEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error parsing Solr URL:", err)
 	}
-	solr := NewSolrClient(u, nil)
+	solr := NewSolrStorage(u, nil)
 	c := New(solr)
 
 	series := make([]*TimeSeries, 0, 10)
@@ -119,7 +119,7 @@ func TestQueryEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal("Error parsing Solr URL:", err)
 	}
-	solr := NewSolrClient(u, nil)
+	solr := NewSolrStorage(u, nil)
 	c := New(solr)
 
 	res, err := c.Query(q, cj, fl)

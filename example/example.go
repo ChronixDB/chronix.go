@@ -35,23 +35,45 @@ func buildSeries() []*chronix.TimeSeries {
 	return series
 }
 
-func main() {
-	solrURL := flag.String("solr.url", "", "The URL to the Solr endpoint to use.")
-	flag.Parse()
-
-	if *solrURL == "" {
-		log.Fatalln("Need to provide -solr.url flag")
-	}
-	u, err := url.Parse(*solrURL)
+func setupSolr(storageUrl *string) chronix.Client {
+	u, err := url.Parse(*storageUrl)
 	if err != nil {
 		log.Fatalln("Error parsing Solr URL:", err)
 	}
-	solr := chronix.NewSolrClient(u, nil)
-	c := chronix.New(solr)
+	solrStorage := chronix.NewSolrStorage(u, nil)
+	return chronix.New(solrStorage)
+}
+
+func setupElastic(storageUrl *string, withIndex *bool, deleteIndexIfExist *bool) chronix.Client {
+	elasticStorage := chronix.NewElasticStorage(storageUrl, withIndex, deleteIndexIfExist)
+	return chronix.New(elasticStorage)
+}
+
+func main() {
+	storageUrl := flag.String("url", "", "The URL to the Solr endpoint to use.")
+	kind := flag.String("kind", "", "Kind: solr or elastic")
+	esWithIndex := flag.Bool("es.withIndex", true, "Creates an index if it do not exists")
+	esDeleteIndexIfExists := flag.Bool("es.deleteIndexIfExists", false, "Deletes the index if one exists (only in use with es.withIndex)")
+	flag.Parse()
+
+	if *storageUrl == "" {
+		log.Fatalln("Need to provide -url flag")
+	}
+
+	var client chronix.Client
+
+	if *kind == "solr" {
+		client = setupSolr(storageUrl)
+	} else if *kind == "elastic" {
+		client = setupElastic(storageUrl, esWithIndex, esDeleteIndexIfExists)
+	} else {
+		log.Fatalln("Need to provide valid -kind flag")
+	}
 
 	log.Println("Storing time series...")
 	series := buildSeries()
-	if err = c.Store(series, true, 0); err != nil {
+	err := client.Store(series, true, 0)
+	if err != nil {
 		log.Fatalln("Error storing time series:", err)
 	}
 	log.Println("Done storing.")
@@ -60,7 +82,7 @@ func main() {
 	q := "name:(testmetric) AND start:1471517965000 AND end:NOW"
 	cj := "host_s,name"
 	fl := "dataAsJson"
-	resp, err := c.Query(q, cj, fl)
+	resp, err := client.Query(q, cj, fl)
 	if err != nil {
 		log.Fatalln("Error querying time series:", err)
 	}
