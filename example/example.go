@@ -44,8 +44,8 @@ func setupSolr(storageUrl *string) chronix.Client {
 	return chronix.New(solrStorage)
 }
 
-func setupElastic(storageUrl *string, withIndex *bool, deleteIndexIfExist *bool) chronix.Client {
-	elasticStorage := chronix.NewElasticStorage(storageUrl, withIndex, deleteIndexIfExist)
+func setupElastic(storageUrl *string, withIndex *bool, deleteIndexIfExist *bool, sniffElasticNodes *bool) chronix.Client {
+	elasticStorage := chronix.NewElasticStorage(storageUrl, withIndex, deleteIndexIfExist, sniffElasticNodes)
 	return chronix.New(elasticStorage)
 }
 
@@ -54,6 +54,7 @@ func main() {
 	kind := flag.String("kind", "", "Kind: solr or elastic")
 	esWithIndex := flag.Bool("es.withIndex", true, "Creates an index if it do not exists")
 	esDeleteIndexIfExists := flag.Bool("es.deleteIndexIfExists", false, "Deletes the index if one exists (only in use with es.withIndex)")
+	esSniff := flag.Bool("es.sniffNodes", false, "Should the elastic client sniff for nodes (only in use with kind 'elastic')")
 	flag.Parse()
 
 	if *storageUrl == "" {
@@ -65,7 +66,7 @@ func main() {
 	if *kind == "solr" {
 		client = setupSolr(storageUrl)
 	} else if *kind == "elastic" {
-		client = setupElastic(storageUrl, esWithIndex, esDeleteIndexIfExists)
+		client = setupElastic(storageUrl, esWithIndex, esDeleteIndexIfExists, esSniff)
 	} else {
 		log.Fatalln("Need to provide valid -kind flag")
 	}
