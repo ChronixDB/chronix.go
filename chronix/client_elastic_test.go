@@ -2,7 +2,6 @@ package chronix
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +10,12 @@ import (
 
 	"strings"
 	"bufio"
+	"os"
+	"reflect"
+	"path/filepath"
 )
 
-func TestElasticUpdateEndToEnd(t *testing.T) {
+func createElasticMock(reference string, t *testing.T) *httptest.Server {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		if r.URL.String() != "/_bulk" {
@@ -30,49 +32,97 @@ func TestElasticUpdateEndToEnd(t *testing.T) {
 			t.Fatal("Error reading request body:", err)
 		}
 
-		s := string(body[:])
-		var lines []string
+		referenceFile := filepath.Join("fixtures", "elastic", reference)
 
-		scanner := bufio.NewScanner(strings.NewReader(s))
-		for scanner.Scan() {
-			lines = append(lines, scanner.Text())
+		body = normalizeDataBlocks(body[:])
+		writeReferenceFile(body[:], referenceFile, t)
+
+
+		want := readReference(referenceFile, t)
+		got := parseReceived(body[:], t)
+
+		if !reflect.DeepEqual(want, got) {
+			t.Fatalf("Unexpected request body. Want:\n\n%v\n\nGot:\n\n%v", want, got)
 		}
-
-		var got interface{}
-
-		//Check that valid json is written
-		for _, line := range lines {
-			if err = json.Unmarshal([]byte(line), &got); err != nil {
-				t.Fatal("Error unmarshalling body:", err)
-			}
-		}
-
 	}))
+	return server
+}
+
+func writeReferenceFile(body []byte, referenceFile string, t *testing.T) {
+	if *update {
+		if err := ioutil.WriteFile(referenceFile, body[:], 0644); err != nil {
+			t.Fatal("Writing the reference file failed:", err)
+		}
+	}
+}
+
+func parseReceived(body []byte, t *testing.T) []interface{}{
+	var result []interface{}
+
+	s := string(body[:])
+	scanner := bufio.NewScanner(strings.NewReader(s))
+	for scanner.Scan() {
+		var asJson interface{}
+		err := json.Unmarshal(scanner.Bytes(), &asJson)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result = append(result, asJson)
+	}
+	return result
+}
+
+func readReference(reference string, t *testing.T) []interface{} {
+	var result []interface{}
+
+	file, err := os.Open(reference)
+	if err != nil {
+		t.Fatal("Opening file failed", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		var asJson interface{}
+		err = json.Unmarshal(scanner.Bytes(), &asJson)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result = append(result, asJson)
+	}
+	return result
+}
+
+func createElasticClient(server *httptest.Server, createStatistics bool) Client {
+	elastic := NewElasticTestStorage(&server.URL)
+
+	if createStatistics {
+		return NewWithStatistics(elastic)
+	} else {
+		return New(elastic)
+	}
+}
+
+func TestElasticUpdateEndToEnd(t *testing.T) {
+	server := createElasticMock("reference.txt", t)
 	defer server.Close()
 
-	solr := NewElasticTestStorage(&server.URL)
-	c := New(solr)
+	c := createElasticClient(server, false)
 
-	series := make([]*TimeSeries, 0, 10)
-	for s := 0; s < 10; s++ {
-		ts := &TimeSeries{
-			Name: "testmetric",
-			Type: "metric",
-			Attributes: map[string]string{
-				"host": fmt.Sprintf("testhost_%d", s),
-			},
-		}
+	series := genTimeSeries()
 
-		ts.Points = make([]Point, 0, 100)
-		for i := 0; i < 100; i++ {
-			ts.Points = append(ts.Points, Point{
-				Timestamp: int64(i + 15),
-				Value:     float64((s + i) * 100),
-			})
-		}
-
-		series = append(series, ts)
+	if err := c.Store(series, true, time.Second); err != nil {
+		t.Fatal("Error storing time series:", err)
 	}
+}
+
+func TestElasticUpdateWithStatisticsEndToEnd(t *testing.T) {
+	server := createElasticMock("referenceWithStatistics.txt", t)
+	defer server.Close()
+
+	c := createElasticClient(server, true)
+
+	series := genTimeSeries()
 
 	if err := c.Store(series, true, time.Second); err != nil {
 		t.Fatal("Error storing time series:", err)

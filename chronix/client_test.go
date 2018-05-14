@@ -10,10 +10,17 @@ import (
 	"reflect"
 	"testing"
 	"time"
+	"flag"
+	"path/filepath"
+	"strings"
 )
 
-func TestUpdateEndToEnd(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+var update = flag.Bool("update", false, "update reference json files")
+
+// Helper function that creates a Solr mock
+func createSolrMock(t *testing.T, reference string) *httptest.Server {
+
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.String() != "/solr/chronix/update?commit=true&commitWithin=1000" {
 			t.Fatal("Unexpected URL:", r.URL.String())
 		}
@@ -26,13 +33,20 @@ func TestUpdateEndToEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal("Error reading request body:", err)
 		}
+
+		body = normalizeDataBlocks(body[:])
+
 		var got interface{}
 		if err = json.Unmarshal(body, &got); err != nil {
 			t.Fatal("Error unmarshalling body:", err)
 		}
 
+
+		referenceFile := filepath.Join("fixtures", "solr", reference)
+		writeReferenceJson(got, t, referenceFile)
+
 		// Read and unmarshal fixture.
-		f, err := ioutil.ReadFile("fixtures/update.json")
+		f, err := ioutil.ReadFile(referenceFile)
 		if err != nil {
 			t.Fatal("Error reading fixture file:", err)
 		}
@@ -42,19 +56,29 @@ func TestUpdateEndToEnd(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(got, want) {
-			//Todo: Fix me.
-			//t.Fatalf("Unexpected request body. Want:\n\n%v\n\nGot:\n\n%v", want, got)
+			t.Fatalf("Unexpected request body. Want:\n\n%v\n\nGot:\n\n%v", want.([]interface{}), got.([]interface{}))
 		}
 	}))
-	defer server.Close()
+}
 
-	u, err := url.Parse(server.URL + "/solr/chronix")
-	if err != nil {
-		t.Fatal("Error parsing Solr URL:", err)
+func writeReferenceJson(jsonStruct interface{}, t *testing.T, referenceFile string) {
+	if *update {
+		pretty, err := json.MarshalIndent(jsonStruct, "", "    ")
+		if err != nil {
+			t.Fatal("Error marshalling request:", err)
+		}
+		ioutil.WriteFile(referenceFile, pretty, 0644)
 	}
-	solr := NewSolrStorage(u, nil)
-	c := New(solr)
+}
 
+func normalizeDataBlocks(data []byte) []byte {
+	s := string(data[:])
+	converted := []byte(strings.Replace(s, "H4sIAAAAAAAA/", "H4sIAAAJbogA/", -1))
+	return converted
+}
+
+// Helper function that generates some test data
+func genTimeSeries() []*TimeSeries {
 	series := make([]*TimeSeries, 0, 10)
 	for s := 0; s < 10; s++ {
 		ts := &TimeSeries{
@@ -75,11 +99,48 @@ func TestUpdateEndToEnd(t *testing.T) {
 
 		series = append(series, ts)
 	}
+	return series
+}
 
+func TestUpdateEndToEnd(t *testing.T) {
+	// given:
+	server := createSolrMock(t, "update.json")
+	defer server.Close()
+	series := genTimeSeries()
+	c, err := createSolrClient(server, t, false)
+
+	// expect:
 	if err = c.Store(series, true, time.Second); err != nil {
 		t.Fatal("Error storing time series:", err)
 	}
 }
+
+func TestUpdateWithStatsEndToEnd(t *testing.T) {
+	// given:
+	server := createSolrMock(t, "updateWithStats.json")
+	defer server.Close()
+	series := genTimeSeries()
+	c, err := createSolrClient(server, t, true)
+
+	// expect:
+	if err = c.Store(series, true, time.Second); err != nil {
+		t.Fatal("Error storing time series:", err)
+	}
+}
+
+func createSolrClient(server *httptest.Server, t *testing.T, withStatistics bool) (Client, error) {
+	u, err := url.Parse(server.URL + "/solr/chronix")
+	if err != nil {
+		t.Fatal("Error parsing Solr URL:", err)
+	}
+	solr := NewSolrStorage(u, nil)
+	if withStatistics {
+		return NewWithStatistics(solr), err
+	} else {
+		return New(solr), err
+	}
+}
+
 
 func TestQueryEndToEnd(t *testing.T) {
 	q := "name:(testmetric) AND start:1471517965000 AND end:1471520557000"
