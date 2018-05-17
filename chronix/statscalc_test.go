@@ -74,3 +74,19 @@ func TestCalculateStatsWithEmptyPoints(t *testing.T) {
 		t.Error("Exception message is wrong: ", err.Error())
 	}
 }
+
+func TestCalculateStatsWithNaNValue(t *testing.T) {
+	// given:
+	series := TimeSeries{ Name: "Test", Type: "metric", Attributes: map[string]string{ "host": "node0"}}
+	series.Points = []Point{{Timestamp: 1, Value: math.NaN()}, {Timestamp: 2, Value:1}}
+	// when:
+	stats, err := calculateStats(&series)
+	// then:
+	if err != nil {
+		t.Fatal("Failed to calculate Stats", err)
+	}
+
+	if stats.avg != 1 {
+		t.Error("Expected the avg to be 1, got ", stats.avg)
+	}
+}
